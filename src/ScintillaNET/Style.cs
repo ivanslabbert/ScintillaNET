@@ -54,6 +54,34 @@ namespace ScintillaNET
 
         #endregion Fields
 
+        #region Methods
+
+        /// <summary>
+        /// Copies the current style to another style.
+        /// </summary>
+        /// <param name="destination">The <see cref="Style" /> to which the current style should be copied.</param>
+        public void CopyTo(Style destination)
+        {
+            if (destination == null)
+                return;
+
+            destination.BackColor = BackColor;
+            // destination.Bold = Bold;
+            destination.Case = Case;
+            destination.FillLine = FillLine;
+            destination.Font = Font;
+            destination.ForeColor = ForeColor;
+            destination.Hotspot = Hotspot;
+            destination.Italic = Italic;
+            destination.Size = Size;
+            destination.SizeF = SizeF;
+            destination.Underline = Underline;
+            destination.Visible = Visible;
+            destination.Weight = Weight;
+        }
+
+        #endregion Methods
+
         #region Properties
 
         /// <summary>
@@ -1840,6 +1868,46 @@ namespace ScintillaNET
 
         #endregion PhpScript
 
+        #region Properties
+
+        /// <summary>
+        /// Style constants for use with the <see cref="Lexer.Properties" /> lexer.
+        /// </summary>
+        public static class Properties
+        {
+            /// <summary>
+            /// Default (whitespace) style index.
+            /// </summary>
+            public const int Default = NativeMethods.SCE_PROPS_DEFAULT;
+
+            /// <summary>
+            /// Comment style index.
+            /// </summary>
+            public const int Comment = NativeMethods.SCE_PROPS_COMMENT;
+
+            /// <summary>
+            /// Section style index.
+            /// </summary>
+            public const int Section = NativeMethods.SCE_PROPS_SECTION;
+
+            /// <summary>
+            /// Assignment operator index.
+            /// </summary>
+            public const int Assignment = NativeMethods.SCE_PROPS_ASSIGNMENT;
+
+            /// <summary>
+            /// Default (registry-only) value index.
+            /// </summary>
+            public const int DefVal = NativeMethods.SCE_PROPS_DEFVAL;
+
+            /// <summary>
+            /// Key style index.
+            /// </summary>
+            public const int Key = NativeMethods.SCE_PROPS_KEY;
+        }
+
+        #endregion Properties
+
         #region PureBasic
 
         /// <summary>
@@ -2891,6 +2959,111 @@ namespace ScintillaNET
         }
 
         #endregion VbScript
+
+        #region Verilog
+
+        /// <summary>
+        /// Style constants for use with the <see cref="Lexer.Verilog" /> lexer.
+        /// </summary>
+        public static class Verilog
+        {
+            /// <summary>
+            /// Default (whitespace) style index.
+            /// </summary>
+            public const int Default = NativeMethods.SCE_V_DEFAULT;
+
+            /// <summary>
+            /// Comment style index.
+            /// </summary>
+            public const int Comment = NativeMethods.SCE_V_COMMENT;
+
+            /// <summary>
+            /// Comment line style index.
+            /// </summary>
+            public const int CommentLine = NativeMethods.SCE_V_COMMENTLINE;
+
+            /// <summary>
+            /// Comment line bang (exclamation) style index.
+            /// </summary>
+            public const int CommentLineBang = NativeMethods.SCE_V_COMMENTLINEBANG;
+
+            /// <summary>
+            /// Number style index.
+            /// </summary>
+            public const int Number = NativeMethods.SCE_V_NUMBER;
+
+            /// <summary>
+            /// Keyword (set 0) style index.
+            /// </summary>
+            public const int Word = NativeMethods.SCE_V_WORD;
+
+            /// <summary>
+            /// String style index.
+            /// </summary>
+            public const int String = NativeMethods.SCE_V_STRING;
+
+            /// <summary>
+            /// Keyword (set 1) style index.
+            /// </summary>
+            public const int Word2 = NativeMethods.SCE_V_WORD2;
+
+            /// <summary>
+            /// Keyword (set 2) style index.
+            /// </summary>
+            public const int Word3 = NativeMethods.SCE_V_WORD3;
+
+            /// <summary>
+            /// Preprocessor style index.
+            /// </summary>
+            public const int Preprocessor = NativeMethods.SCE_V_PREPROCESSOR;
+
+            /// <summary>
+            /// Operator style index.
+            /// </summary>
+            public const int Operator = NativeMethods.SCE_V_OPERATOR;
+
+            /// <summary>
+            /// Identifier style index.
+            /// </summary>
+            public const int Identifier = NativeMethods.SCE_V_IDENTIFIER;
+
+            /// <summary>
+            /// Unclosed string EOL style index.
+            /// </summary>
+            public const int StringEol = NativeMethods.SCE_V_STRINGEOL;
+
+            /// <summary>
+            /// User word (set 3) style index.
+            /// </summary>
+            public const int User = NativeMethods.SCE_V_USER;
+
+            /// <summary>
+            /// Comment word (set 4) style index.
+            /// </summary>
+            public const int CommentWord = NativeMethods.SCE_V_COMMENT_WORD;
+
+            /// <summary>
+            /// Input style index.
+            /// </summary>
+            public const int Input = NativeMethods.SCE_V_INPUT;
+
+            /// <summary>
+            /// Output style index.
+            /// </summary>
+            public const int Output = NativeMethods.SCE_V_OUTPUT;
+
+            /// <summary>
+            /// In-out style index.
+            /// </summary>
+            public const int InOut = NativeMethods.SCE_V_INOUT;
+
+            /// <summary>
+            /// Port connect style index.
+            /// </summary>
+            public const int PortConnect = NativeMethods.SCE_V_PORT_CONNECT;
+        }
+
+        #endregion Verilog
 
         #region Xml
 

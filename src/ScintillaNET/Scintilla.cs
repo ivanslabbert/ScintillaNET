@@ -25,6 +25,10 @@ namespace ScintillaNET
     {
         #region Fields
 
+        // WM_DESTROY workaround
+        private static bool? reparentGlobal;
+        private bool reparent;
+
         // Static module data
         private static string modulePath;
         private static IntPtr moduleHandle;
@@ -46,6 +50,7 @@ namespace ScintillaNET
         private static readonly object marginClickEventKey = new object();
         private static readonly object charAddedEventKey = new object();
         private static readonly object autoCSelectionEventKey = new object();
+        private static readonly object autoCCompletedEventKey = new object();
         private static readonly object autoCCancelledEventKey = new object();
         private static readonly object autoCCharDeletedEventKey = new object();
         private static readonly object dwellStartEventKey = new object();
@@ -54,6 +59,11 @@ namespace ScintillaNET
         private static readonly object doubleClickEventKey = new object();
         private static readonly object paintedEventKey = new object();
         private static readonly object needShownEventKey = new object();
+        private static readonly object hotspotClickEventKey = new object();
+        private static readonly object hotspotDoubleClickEventKey = new object();
+        private static readonly object hotspotReleaseClickEventKey = new object();
+        private static readonly object indicatorClickEventKey = new object();
+        private static readonly object indicatorReleaseEventKey = new object();
 
         // The goods
         private IntPtr sciPtr;
@@ -762,6 +772,14 @@ namespace ScintillaNET
         {
             if (disposing)
             {
+                // WM_DESTROY workaround
+                if (reparent)
+                {
+                    reparent = false;
+                    if (IsHandleCreated)
+                        DestroyHandle();
+                }
+
                 if (fillUpChars != IntPtr.Zero)
                 {
                     Marshal.FreeHGlobal(fillUpChars);
@@ -1094,6 +1112,24 @@ namespace ScintillaNET
         }
 
         /// <summary>
+        /// Gets a range of text from the document formatted as Hypertext Markup Language (HTML).
+        /// </summary>
+        /// <param name="position">The zero-based starting character position of the range to get.</param>
+        /// <param name="length">The number of characters to get.</param>
+        /// <returns>A string representing the text range formatted as HTML.</returns>
+        public string GetTextRangeAsHtml(int position, int length)
+        {
+            var textLength = TextLength;
+            position = Helpers.Clamp(position, 0, textLength);
+            length = Helpers.Clamp(length, 0, textLength - position);
+
+            var startBytePos = Lines.CharToBytePosition(position);
+            var endBytePos = Lines.CharToBytePosition(position + length);
+
+            return Helpers.GetHtml(this, startBytePos, endBytePos);
+        }
+
+        /// <summary>
         /// Returns the version information of the native Scintilla library.
         /// </summary>
         /// <returns>An object representing the version information of the native Scintilla library.</returns>
@@ -1114,7 +1150,7 @@ namespace ScintillaNET
         {
             int startPosition = WordStartPosition(position, true);
             int endPosition = WordEndPosition(position, true);
-            return GetTextRange(startPosition, endPosition);
+            return GetTextRange(startPosition, endPosition - startPosition);
         }
 
         /// <summary>
@@ -1190,6 +1226,20 @@ namespace ScintillaNET
             var endPos = Lines.CharToBytePosition(position + length);
 
             DirectMessage(NativeMethods.SCI_INDICATORFILLRANGE, new IntPtr(startPos), new IntPtr(endPos - startPos));
+        }
+
+        private void InitDocument(Eol eolMode = Eol.CrLf, bool useTabs = false, int tabWidth = 4, int indentWidth = 0)
+        {
+            // Document.h
+            // These properties are stored in the document object used by Scintilla and
+            // thus will have their properties reset when changing the document.
+
+            DirectMessage(NativeMethods.SCI_SETCODEPAGE, new IntPtr(NativeMethods.SC_CP_UTF8));
+            DirectMessage(NativeMethods.SCI_SETUNDOCOLLECTION, new IntPtr(1));
+            DirectMessage(NativeMethods.SCI_SETEOLMODE, new IntPtr((int)eolMode));
+            DirectMessage(NativeMethods.SCI_SETUSETABS, useTabs ? new IntPtr(1) : IntPtr.Zero);
+            DirectMessage(NativeMethods.SCI_SETTABWIDTH, new IntPtr(tabWidth));
+            DirectMessage(NativeMethods.SCI_SETINDENT, new IntPtr(indentWidth));
         }
 
         /// <summary>
@@ -1305,6 +1355,16 @@ namespace ScintillaNET
         }
 
         /// <summary>
+        /// Enable or disable highlighting of the current folding block.
+        /// </summary>
+        /// <param name="enabled">true to highlight the current folding block; otherwise, false.</param>
+        public void MarkerEnableHighlight(bool enabled)
+        {
+            var val = (enabled ? new IntPtr(1) : IntPtr.Zero);
+            DirectMessage(NativeMethods.SCI_MARKERENABLEHIGHLIGHT, val);
+        }
+
+        /// <summary>
         /// Searches the document for the marker handle and returns the line number containing the marker if found.
         /// </summary>
         /// <param name="markerHandle">The <see cref="MarkerHandle" /> created by a previous call to <see cref="Line.MarkerAdd" /> of the marker to search for.</param>
@@ -1360,6 +1420,17 @@ namespace ScintillaNET
         protected virtual void OnAutoCCharDeleted(EventArgs e)
         {
             var handler = Events[autoCCharDeletedEventKey] as EventHandler<EventArgs>;
+            if (handler != null)
+                handler(this, e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="AutoCCompleted" /> event.
+        /// </summary>
+        /// <param name="e">An <see cref="AutoCSelectionEventArgs" /> that contains the event data.</param>
+        protected virtual void OnAutoCCompleted(AutoCSelectionEventArgs e)
+        {
+            var handler = Events[autoCCompletedEventKey] as EventHandler<AutoCSelectionEventArgs>;
             if (handler != null)
                 handler(this, e);
         }
@@ -1481,15 +1552,10 @@ namespace ScintillaNET
         protected override void OnHandleCreated(EventArgs e)
         {
             // Set more intelligent defaults...
+            InitDocument();
 
             // I would like to see all of my text please
             DirectMessage(NativeMethods.SCI_SETSCROLLWIDTHTRACKING, new IntPtr(1));
-
-            // It's pointless to do any encoding other than UTF-8 in Scintilla
-            DirectMessage(NativeMethods.SCI_SETCODEPAGE, new IntPtr(NativeMethods.SC_CP_UTF8));
-
-            // The default tab width of 8 is crazy big
-            DirectMessage(NativeMethods.SCI_SETTABWIDTH, new IntPtr(4));
 
             // Enable support for the call tip style and tabs
             DirectMessage(NativeMethods.SCI_CALLTIPUSESTYLE, new IntPtr(16));
@@ -1502,6 +1568,61 @@ namespace ScintillaNET
             NativeMethods.RevokeDragDrop(Handle);
 
             base.OnHandleCreated(e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="HotspotClick" /> event.
+        /// </summary>
+        /// <param name="e">A <see cref="HotspotClickEventArgs" /> that contains the event data.</param>
+        protected virtual void OnHotspotClick(HotspotClickEventArgs e)
+        {
+            var handler = Events[hotspotClickEventKey] as EventHandler<HotspotClickEventArgs>;
+            if (handler != null)
+                handler(this, e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="HotspotDoubleClick" /> event.
+        /// </summary>
+        /// <param name="e">A <see cref="HotspotClickEventArgs" /> that contains the event data.</param>
+        protected virtual void OnHotspotDoubleClick(HotspotClickEventArgs e)
+        {
+            var handler = Events[hotspotDoubleClickEventKey] as EventHandler<HotspotClickEventArgs>;
+            if (handler != null)
+                handler(this, e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="HotspotReleaseClick" /> event.
+        /// </summary>
+        /// <param name="e">A <see cref="HotspotClickEventArgs" /> that contains the event data.</param>
+        protected virtual void OnHotspotReleaseClick(HotspotClickEventArgs e)
+        {
+            var handler = Events[hotspotReleaseClickEventKey] as EventHandler<HotspotClickEventArgs>;
+            if (handler != null)
+                handler(this, e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="IndicatorClick" /> event.
+        /// </summary>
+        /// <param name="e">An <see cref="IndicatorClickEventArgs" /> that contains the event data.</param>
+        protected virtual void OnIndicatorClick(IndicatorClickEventArgs e)
+        {
+            var handler = Events[indicatorClickEventKey] as EventHandler<IndicatorClickEventArgs>;
+            if (handler != null)
+                handler(this, e);
+        }
+
+        /// <summary>
+        /// Raises the <see cref="IndicatorRelease" /> event.
+        /// </summary>
+        /// <param name="e">An <see cref="IndicatorReleaseEventArgs" /> that contains the event data.</param>
+        protected virtual void OnIndicatorRelease(IndicatorReleaseEventArgs e)
+        {
+            var handler = Events[indicatorReleaseEventKey] as EventHandler<IndicatorReleaseEventArgs>;
+            if (handler != null)
+                handler(this, e);
         }
 
         /// <summary>
@@ -1759,8 +1880,6 @@ namespace ScintillaNET
         /// </remarks>
         public unsafe void ReplaceSelection(string text)
         {
-            // TODO I don't like how using a null/empty string does nothing
-
             fixed (byte* bp = Helpers.GetBytes(text ?? string.Empty, Encoding, zeroTerminated: true))
                 DirectMessage(NativeMethods.SCI_REPLACESEL, IntPtr.Zero, new IntPtr(bp));
         }
@@ -1824,6 +1943,41 @@ namespace ScintillaNET
             var keys = Keys.Modifiers & (Keys)(scn.modifiers << 16);
             var eventArgs = new DoubleClickEventArgs(this, keys, scn.position, scn.line);
             OnDoubleClick(eventArgs);
+        }
+
+        private void ScnHotspotClick(ref NativeMethods.SCNotification scn)
+        {
+            var keys = Keys.Modifiers & (Keys)(scn.modifiers << 16);
+            var eventArgs = new HotspotClickEventArgs(this, keys, scn.position);
+            switch (scn.nmhdr.code)
+            {
+                case NativeMethods.SCN_HOTSPOTCLICK:
+                    OnHotspotClick(eventArgs);
+                    break;
+
+                case NativeMethods.SCN_HOTSPOTDOUBLECLICK:
+                    OnHotspotDoubleClick(eventArgs);
+                    break;
+
+                case NativeMethods.SCN_HOTSPOTRELEASECLICK:
+                    OnHotspotReleaseClick(eventArgs);
+                    break;
+            }
+        }
+
+        private void ScnIndicatorClick(ref NativeMethods.SCNotification scn)
+        {
+            switch (scn.nmhdr.code)
+            {
+                case NativeMethods.SCN_INDICATORCLICK:
+                    var keys = Keys.Modifiers & (Keys)(scn.modifiers << 16);
+                    OnIndicatorClick(new IndicatorClickEventArgs(this, keys, scn.position));
+                    break;
+
+                case NativeMethods.SCN_INDICATORRELEASE:
+                    OnIndicatorRelease(new IndicatorReleaseEventArgs(this, scn.position));
+                    break;
+            }
         }
 
         private void ScnMarginClick(ref NativeMethods.SCNotification scn)
@@ -2052,6 +2206,20 @@ namespace ScintillaNET
 
             fixed (byte* bp = bytes)
                 DirectMessage(NativeMethods.SCI_SETKEYWORDS, new IntPtr(set), new IntPtr(bp));
+        }
+
+        /// <summary>
+        /// Sets the application-wide behavior for destroying <see cref="Scintilla" /> controls.
+        /// </summary>
+        /// <param name="reparent">true to reparent Scintilla controls to message-only windows when destroyed rather than actually destroying the control handle; otherwise, false.</param>
+        /// <remarks>This method must be called prior to the first <see cref="Scintilla" /> control being created.</remarks>
+        public static void SetDestroyHandleBehavior(bool reparent)
+        {
+            // WM_DESTROY workaround
+            if (Scintilla.reparentGlobal == null)
+            {
+                Scintilla.reparentGlobal = reparent;
+            }
         }
 
         /// <summary>
@@ -2374,6 +2542,40 @@ namespace ScintillaNET
             DirectMessage(NativeMethods.SCI_UNDO);
         }
 
+        /// <summary>
+        /// Determines whether to show the right-click context menu.
+        /// </summary>
+        /// <param name="enablePopup">true to enable the popup window; otherwise, false.</param>
+        public void UsePopup(bool enablePopup)
+        {
+            var bEnablePopup = (enablePopup ? new IntPtr(1) : IntPtr.Zero);
+            DirectMessage(NativeMethods.SCI_USEPOPUP, bEnablePopup);
+        }
+
+        private void WmDestroy(ref Message m)
+        {
+            // WM_DESTROY workaround
+            if (reparent && IsHandleCreated)
+            {
+                // In some circumstances it's possible for the control's window handle to be destroyed
+                // and recreated during the life of the control. I have no idea why Windows Forms was coded
+                // this way but that creates an issue for us because most/all of our control state is stored
+                // in the native Scintilla control (i.e. Handle) and to destroy it will bork us. So, rather
+                // than destroying the handle as requested, we "reparent" ourselves to a message-only
+                // (invisible) window to keep our handle alive. It doesn't appear that this causes any
+                // issues to Windows Forms because it is completely unaware of it. When a control goes through
+                // its regular (re)create handle process one of the steps is to assign the parent and so our
+                // temporary bait-and-switch gets reconciled again automatically. Our Dispose method ensures
+                // that we truly get destroyed when the time is right.
+
+                NativeMethods.SetParent(Handle, new IntPtr(NativeMethods.HWND_MESSAGE));
+                m.Result = IntPtr.Zero;
+                return;
+            }
+
+            base.WndProc(ref m);
+        }
+
         private void WmReflectNotify(ref Message m)
         {
             // A standard Windows notification and a Scintilla notification header are compatible
@@ -2423,7 +2625,11 @@ namespace ScintillaNET
                         break;
 
                     case NativeMethods.SCN_AUTOCSELECTION:
-                        OnAutoCSelection(new AutoCSelectionEventArgs(this, scn.position, scn.text));
+                        OnAutoCSelection(new AutoCSelectionEventArgs(this, scn.position, scn.text, scn.ch, (ListCompletionMethod)scn.listCompletionMethod));
+                        break;
+
+                    case NativeMethods.SCN_AUTOCCOMPLETED:
+                        OnAutoCCompleted(new AutoCSelectionEventArgs(this, scn.position, scn.text, scn.ch, (ListCompletionMethod)scn.listCompletionMethod));
                         break;
 
                     case NativeMethods.SCN_AUTOCCANCELLED:
@@ -2448,6 +2654,17 @@ namespace ScintillaNET
 
                     case NativeMethods.SCN_NEEDSHOWN:
                         OnNeedShown(new NeedShownEventArgs(this, scn.position, scn.length));
+                        break;
+
+                    case NativeMethods.SCN_HOTSPOTCLICK:
+                    case NativeMethods.SCN_HOTSPOTDOUBLECLICK:
+                    case NativeMethods.SCN_HOTSPOTRELEASECLICK:
+                        ScnHotspotClick(ref scn);
+                        break;
+
+                    case NativeMethods.SCN_INDICATORCLICK:
+                    case NativeMethods.SCN_INDICATORRELEASE:
+                        ScnIndicatorClick(ref scn);
                         break;
 
                     default:
@@ -2480,6 +2697,10 @@ namespace ScintillaNET
                 case NativeMethods.WM_XBUTTONDBLCLK:
                     doubleClick = true;
                     goto default;
+
+                case NativeMethods.WM_DESTROY:
+                    WmDestroy(ref m);
+                    break;
 
                 default:
                     base.WndProc(ref m);
@@ -3497,8 +3718,16 @@ namespace ScintillaNET
             }
             set
             {
+                var eolMode = EolMode;
+                var useTabs = UseTabs;
+                var tabWidth = TabWidth;
+                var indentWidth = IndentWidth;
+
                 var ptr = value.Value;
                 DirectMessage(NativeMethods.SCI_SETDOCPOINTER, IntPtr.Zero, ptr);
+
+                // Carry over properties to new document
+                InitDocument(eolMode, useTabs, tabWidth, indentWidth);
 
                 // Rebuild the line cache
                 Lines.RebuildLineData();
@@ -4694,34 +4923,6 @@ namespace ScintillaNET
         }
 
         /// <summary>
-        /// Gets or sets whether to collect undo and redo information.
-        /// </summary>
-        /// <returns>true to collect undo and redo information; otherwise, false. The default is true.</returns>
-        /// <remarks>Disabling undo collection will also empty the undo buffer. See <see cref="EmptyUndoBuffer" />.</remarks>
-        [DefaultValue(true)]
-        [Category("Behavior")]
-        [Description("Determines whether to collect undo and redo information.")]
-        public bool UndoCollection
-        {
-            get
-            {
-                return (DirectMessage(NativeMethods.SCI_GETUNDOCOLLECTION) != IntPtr.Zero);
-            }
-            set
-            {
-                var collectUndo = (value ? new IntPtr(1) : IntPtr.Zero);
-                DirectMessage(NativeMethods.SCI_SETUNDOCOLLECTION, collectUndo);
-                if (!value)
-                {
-                    // Scintilla documentation makes it clear that if you fail to empty the undo buffer
-                    // when you disable collection the buffer could become unsynchronized with the document.
-                    // Seems like something we should do automatically.
-                    DirectMessage(NativeMethods.SCI_EMPTYUNDOBUFFER);
-                }
-            }
-        }
-
-        /// <summary>
         /// Gets or sets whether to use a mixture of tabs and spaces for indentation or purely spaces.
         /// </summary>
         /// <returns>true to use tab characters; otherwise, false. The default is true.</returns>
@@ -5096,6 +5297,23 @@ namespace ScintillaNET
         }
 
         /// <summary>
+        /// Occurs after autocompleted text is inserted.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs after autocompleted text has been inserted.")]
+        public event EventHandler<AutoCSelectionEventArgs> AutoCCompleted
+        {
+            add
+            {
+                Events.AddHandler(autoCCompletedEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(autoCCompletedEventKey, value);
+            }
+        }
+
+        /// <summary>
         /// Occurs when a user has selected an item in an autocompletion list.
         /// </summary>
         /// <remarks>Automatic insertion can be cancelled by calling <see cref="AutoCCancel" /> from the event handler.</remarks>
@@ -5369,6 +5587,91 @@ namespace ScintillaNET
         }
 
         /// <summary>
+        /// Occurs when the user clicks on text that is in a style with the <see cref="Style.Hotspot" /> property set.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs when the user clicks text styled with the hotspot flag.")]
+        public event EventHandler<HotspotClickEventArgs> HotspotClick
+        {
+            add
+            {
+                Events.AddHandler(hotspotClickEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(hotspotClickEventKey, value);
+            }
+        }
+
+        /// <summary>
+        /// Occurs when the user double clicks on text that is in a style with the <see cref="Style.Hotspot" /> property set.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs when the user double clicks text styled with the hotspot flag.")]
+        public event EventHandler<HotspotClickEventArgs> HotspotDoubleClick
+        {
+            add
+            {
+                Events.AddHandler(hotspotDoubleClickEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(hotspotDoubleClickEventKey, value);
+            }
+        }
+
+        /// <summary>
+        /// Occurs when the user releases a click on text that is in a style with the <see cref="Style.Hotspot" /> property set.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs when the user releases a click on text styled with the hotspot flag.")]
+        public event EventHandler<HotspotClickEventArgs> HotspotReleaseClick
+        {
+            add
+            {
+                Events.AddHandler(hotspotReleaseClickEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(hotspotReleaseClickEventKey, value);
+            }
+        }
+
+        /// <summary>
+        /// Occurs when the user clicks on text that has an indicator.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs when the user clicks text with an indicator.")]
+        public event EventHandler<IndicatorClickEventArgs> IndicatorClick
+        {
+            add
+            {
+                Events.AddHandler(indicatorClickEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(indicatorClickEventKey, value);
+            }
+        }
+
+        /// <summary>
+        /// Occurs when the user releases a click on text that has an indicator.
+        /// </summary>
+        [Category("Notifications")]
+        [Description("Occurs when the user releases a click on text with an indicator.")]
+        public event EventHandler<IndicatorReleaseEventArgs> IndicatorRelease
+        {
+            add
+            {
+                Events.AddHandler(indicatorReleaseEventKey, value);
+            }
+            remove
+            {
+                Events.RemoveHandler(indicatorReleaseEventKey, value);
+            }
+        }
+
+        /// <summary>
         /// Occurs when text has been inserted into the document.
         /// </summary>
         [Category("Notifications")]
@@ -5591,6 +5894,10 @@ namespace ScintillaNET
         /// </summary>
         public Scintilla()
         {
+            // WM_DESTROY workaround
+            if (Scintilla.reparentGlobal.HasValue)
+                reparent = (bool)Scintilla.reparentGlobal;
+
             // We don't want .NET to use GetWindowText because we manage ('cache') our own text
             base.SetStyle(ControlStyles.CacheText, true);
 

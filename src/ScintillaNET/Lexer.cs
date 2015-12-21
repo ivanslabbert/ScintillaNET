@@ -87,6 +87,11 @@ namespace ScintillaNET
         PhpScript = NativeMethods.SCLEX_PHPSCRIPT,
 
         /// <summary>
+        /// Properties file (INI) lexer.
+        /// </summary>
+        Properties = NativeMethods.SCLEX_PROPERTIES,
+
+        /// <summary>
         /// The PureBasic language lexer.
         /// </summary>
         PureBasic = NativeMethods.SCLEX_PUREBASIC,
@@ -120,6 +125,11 @@ namespace ScintillaNET
         /// The Visual Basic Script (VBScript) lexer.
         /// </summary>
         VbScript = NativeMethods.SCLEX_VBSCRIPT,
+
+        /// <summary>
+        /// The Verilog hardware description language lexer.
+        /// </summary>
+        Verilog = NativeMethods.SCLEX_VERILOG,
 
         /// <summary>
         /// The Extensible Markup Language (XML) lexer.

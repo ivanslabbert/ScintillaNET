@@ -78,9 +78,12 @@
     <Compile Include="FontQuality.cs" />
     <Compile Include="GapBuffer.cs" />
     <Compile Include="Helpers.cs" />
+    <Compile Include="HotspotClickEventArgs.cs" />
     <Compile Include="ILoader.cs" />
     <Compile Include="IndentView.cs" />
     <Compile Include="Indicator.cs" />
+    <Compile Include="IndicatorReleaseEventArgs.cs" />
+    <Compile Include="IndicatorClickEventArgs.cs" />
     <Compile Include="IndicatorCollection.cs" />
     <Compile Include="IndicatorFlags.cs" />
     <Compile Include="IndicatorStyle.cs" />
@@ -89,6 +92,7 @@
     <Compile Include="Line.cs" />
     <Compile Include="LineCollection.cs" />
     <Compile Include="LineEndType.cs" />
+    <Compile Include="ListCompletionMethod.cs" />
     <Compile Include="Loader.cs" />
     <Compile Include="Margin.cs" />
     <Compile Include="MarginClickEventArgs.cs" />

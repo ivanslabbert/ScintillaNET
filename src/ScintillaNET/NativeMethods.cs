@@ -16,6 +16,13 @@ namespace ScintillaNET
 
         public const int INVALID_POSITION = -1;
 
+        // Autocompletions
+        public const int SC_AC_FILLUP = 1;
+        public const int SC_AC_DOUBLECLICK = 2;
+        public const int SC_AC_TAB = 3;
+        public const int SC_AC_NEWLINE = 4;
+        public const int SC_AC_COMMAND = 5;
+
         // Annotations
         public const int ANNOTATION_HIDDEN = 0;
         public const int ANNOTATION_STANDARD = 1;
@@ -56,6 +63,9 @@ namespace ScintillaNET
         public const int EDGE_NONE = 0;
         public const int EDGE_LINE = 1;
         public const int EDGE_BACKGROUND = 2;
+
+        // Message-only window
+        public const int HWND_MESSAGE = (-3);
 
         // Indicators
         public const int INDIC_PLAIN = 0;
@@ -993,6 +1003,7 @@ namespace ScintillaNET
         public const int SCN_HOTSPOTRELEASECLICK = 2027;
         public const int SCN_FOCUSIN = 2028;
         public const int SCN_FOCUSOUT = 2029;
+        public const int SCN_AUTOCCOMPLETED = 2030;
 
         // Line wrapping
         public const int SC_WRAP_NONE = 0;
@@ -1033,6 +1044,7 @@ namespace ScintillaNET
         public const int SC_CASE_MIXED = 0;
         public const int SC_CASE_UPPER = 1;
         public const int SC_CASE_LOWER = 2;
+        public const int SC_CASE_CAMEL = 3;
 
         // Technology
         public const int SC_TECHNOLOGY_DEFAULT = 0;
@@ -1049,6 +1061,8 @@ namespace ScintillaNET
         public const int SCWS_VISIBLEAFTERINDENT = 2;
 
         // Window messages
+        public const int WM_CREATE = 0x0001;
+        public const int WM_DESTROY = 0x0002;
         public const int WM_SETCURSOR = 0x0020;
         public const int WM_NOTIFY = 0x004E;
         public const int WM_LBUTTONDBLCLK = 0x0203;
@@ -1425,6 +1439,14 @@ namespace ScintillaNET
         public const int SCE_PL_STRING_QX_VAR = 65;
         public const int SCE_PL_STRING_QR_VAR = 66;
 
+        // Properties
+        public const int SCE_PROPS_DEFAULT = 0;
+        public const int SCE_PROPS_COMMENT = 1;
+        public const int SCE_PROPS_SECTION = 2;
+        public const int SCE_PROPS_ASSIGNMENT = 3;
+        public const int SCE_PROPS_DEFVAL = 4;
+        public const int SCE_PROPS_KEY = 5;
+
         // PHP script
         public const int SCE_HPHP_COMPLEX_VARIABLE = 104;
         public const int SCE_HPHP_DEFAULT = 118;
@@ -1599,6 +1621,27 @@ namespace ScintillaNET
         public const int SCE_R_INFIX = 10;
         public const int SCE_R_INFIXEOL = 11;
 
+        // Verilog
+        public const int SCE_V_DEFAULT = 0;
+        public const int SCE_V_COMMENT = 1;
+        public const int SCE_V_COMMENTLINE = 2;
+        public const int SCE_V_COMMENTLINEBANG = 3;
+        public const int SCE_V_NUMBER = 4;
+        public const int SCE_V_WORD = 5;
+        public const int SCE_V_STRING = 6;
+        public const int SCE_V_WORD2 = 7;
+        public const int SCE_V_WORD3 = 8;
+        public const int SCE_V_PREPROCESSOR = 9;
+        public const int SCE_V_OPERATOR = 10;
+        public const int SCE_V_IDENTIFIER = 11;
+        public const int SCE_V_STRINGEOL = 12;
+        public const int SCE_V_USER = 19;
+        public const int SCE_V_COMMENT_WORD = 20;
+        public const int SCE_V_INPUT = 21;
+        public const int SCE_V_OUTPUT = 22;
+        public const int SCE_V_INOUT = 23;
+        public const int SCE_V_PORT_CONNECT = 24;
+
         #endregion Lexer Constants
 
         #region Callbacks
@@ -1641,6 +1684,9 @@ namespace ScintillaNET
 
         [DllImport(DLL_NAME_USER32, SetLastError = true)]
         public static extern IntPtr SetClipboardData(uint uFormat, IntPtr hMem);
+
+        [DllImport(DLL_NAME_USER32, SetLastError = true)]
+        public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
         #endregion Functions
 
@@ -1730,6 +1776,7 @@ namespace ScintillaNET
             public int token;
             public int annotationLinesAdded;
             public int updated;
+            public int listCompletionMethod;
         }
 
         #endregion Structures
